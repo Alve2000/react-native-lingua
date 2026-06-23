@@ -1,0 +1,136 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+@theme {
+  --font-poppins: "Poppins-Regular";
+  --font-poppins-medium: "Poppins-Medium";
+  --font-poppins-semibold: "Poppins-SemiBold";
+  --font-poppins-bold: "Poppins-Bold";
+
+  --color-lingua-purple: #6c4ef5;
+  --color-lingua-deep-purple: #5b3bf6;
+  --color-lingua-blue: #4d8bff;
+  --color-lingua-green: #21c16b;
+
+  --color-success: #21c16b;
+  --color-warning: #ffc800;
+  --color-streak: #ff8a00;
+  --color-error: #ff4d4f;
+  --color-info: #4d8bff;
+
+  --color-text-primary: #0d132b;
+  --color-text-secondary: #6b7280;
+  --color-border: #e5e7eb;
+  --color-surface: #f6f7fb;
+  --color-background: #ffffff;
+
+  --spacing-screen: 24px;
+  --radius-card: 16px;
+  --radius-swatch: 10px;
+}
+
+@utility screen {
+  flex: 1;
+  background-color: var(--color-surface);
+}
+
+@utility card {
+  background-color: var(--color-background);
+  border-color: var(--color-border);
+  border-width: 1px;
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+@utility section-title {
+  color: var(--color-lingua-purple);
+  font-family: var(--font-poppins-bold);
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: 0;
+}
+
+@utility divider {
+  height: 1px;
+  background-color: var(--color-border);
+}
+
+@utility label {
+  color: var(--color-text-secondary);
+  font-family: var(--font-poppins-semibold);
+  font-size: 12px;
+  line-height: 17px;
+  text-transform: uppercase;
+}
+
+@utility caption {
+  color: var(--color-text-secondary);
+  font-family: var(--font-poppins);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+@utility swatch {
+  height: 72px;
+  width: 72px;
+  border-radius: var(--radius-swatch);
+}
+
+@utility text-h1 {
+  color: var(--color-text-primary);
+  font-family: var(--font-poppins-bold);
+  font-size: 32px;
+  line-height: 38px;
+}
+
+@utility text-h2 {
+  color: var(--color-text-primary);
+  font-family: var(--font-poppins-semibold);
+  font-size: 24px;
+  line-height: 31px;
+}
+
+@utility text-h3 {
+  color: var(--color-text-primary);
+  font-family: var(--font-poppins-semibold);
+  font-size: 20px;
+  line-height: 26px;
+}
+
+@utility text-h4 {
+  color: var(--color-text-primary);
+  font-family: var(--font-poppins-medium);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+@utility text-body-lg {
+  color: var(--color-text-primary);
+  font-family: var(--font-poppins);
+  font-size: 16px;
+  line-height: 26px;
+}
+
+@utility text-body-md {
+  color: var(--color-text-primary);
+  font-family: var(--font-poppins);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+@utility text-body-sm {
+  color: var(--color-text-secondary);
+  font-family: var(--font-poppins);
+  font-size: 13px;
+  line-height: 21px;
+}
+
+@utility text-caption {
+  color: var(--color-text-secondary);
+  font-family: var(--font-poppins);
+  font-size: 11px;
+  line-height: 15px;
+}
