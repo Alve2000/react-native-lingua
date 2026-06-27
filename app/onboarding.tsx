@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Image,
@@ -12,6 +12,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
 import { colors } from "@/theme";
+
+const signUpHref = "/sign-up" as Href;
 
 export default function OnboardingScreen() {
   return (
@@ -78,7 +80,7 @@ export default function OnboardingScreen() {
           </View>
 
           <View className="mt-auto">
-            <Link href="/" asChild>
+            <Link href={signUpHref} asChild>
               <TouchableOpacity activeOpacity={0.86} style={styles.cta}>
                 <Text className="font-poppins-semibold text-[20px] leading-[26px] text-white">
                   Get Started
