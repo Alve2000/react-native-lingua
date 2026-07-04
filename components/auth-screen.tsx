@@ -1,5 +1,8 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { useSignIn, useSignUp, useSSO } from "@clerk/clerk-expo";
 import { Link, router, type Href } from "expo-router";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { AntDesign, Entypo, FontAwesome, Ionicons } from "@expo/vector-icons";
 import {
   Image,
@@ -17,7 +20,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "@/constants/images";
 import { colors } from "@/theme";
 
+WebBrowser.maybeCompleteAuthSession();
+
 type AuthMode = "sign-up" | "sign-in";
+type SocialStrategy = "oauth_google" | "oauth_facebook" | "oauth_apple";
 
 type AuthScreenProps = {
   mode: AuthMode;
@@ -46,27 +52,162 @@ const socialOptions = [
   {
     icon: <AntDesign color="#4285F4" name="google" size={30} />,
     label: "Continue with Google",
+    strategy: "oauth_google",
   },
   {
     icon: <Entypo color="#1877F2" name="facebook-with-circle" size={32} />,
     label: "Continue with Facebook",
+    strategy: "oauth_facebook",
   },
   {
     icon: <FontAwesome color={colors.textPrimary} name="apple" size={34} />,
     label: "Continue with Apple",
+    strategy: "oauth_apple",
   },
-] as const;
+] satisfies readonly {
+  icon: ReactNode;
+  label: string;
+  strategy: SocialStrategy;
+}[];
+
+function getErrorMessage(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return "Something went wrong. Please try again.";
+  }
+
+  if ("message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  if ("errors" in error && Array.isArray(error.errors)) {
+    const [firstError] = error.errors;
+
+    if (
+      firstError &&
+      typeof firstError === "object" &&
+      "message" in firstError &&
+      typeof firstError.message === "string"
+    ) {
+      return firstError.message;
+    }
+  }
+
+  return "Something went wrong. Please try again.";
+}
 
 export function AuthScreen({ mode }: AuthScreenProps) {
   const copy = authCopy[mode];
+  const {
+    isLoaded: isSignInLoaded,
+    signIn,
+    setActive: setSignInActive,
+  } = useSignIn();
+  const {
+    isLoaded: isSignUpLoaded,
+    signUp,
+    setActive: setSignUpActive,
+  } = useSignUp();
+  const { startSSOFlow } = useSSO();
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const codeInputRef = useRef<TextInput>(null);
+  const isSignUp = mode === "sign-up";
+  const isClerkLoaded = isSignInLoaded && isSignUpLoaded;
+  const isSubmitting = isEmailLoading || isSocialLoading;
+  const visibleError = authError;
 
   const openVerification = () => {
     setVerificationCode("");
     setIsVerificationOpen(true);
     requestAnimationFrame(() => codeInputRef.current?.focus());
+  };
+
+  const finishAuth = () => {
+    setIsVerificationOpen(false);
+    router.replace("/");
+  };
+
+  const handleEmailAuth = async () => {
+    if (!signIn || !signUp) {
+      return;
+    }
+
+    setAuthError("");
+    setIsEmailLoading(true);
+
+    try {
+      if (isSignUp) {
+        await signUp.create({
+          emailAddress,
+          password,
+        });
+
+        await signUp.prepareEmailAddressVerification({
+          strategy: "email_code",
+        });
+      } else {
+        await signIn.create({
+          identifier: emailAddress,
+          strategy: "email_code",
+        });
+      }
+
+      openVerification();
+    } catch (error) {
+      setAuthError(getErrorMessage(error));
+    } finally {
+      setIsEmailLoading(false);
+    }
+  };
+
+  const handleVerificationSubmit = async (code: string) => {
+    if (!signIn || !signUp || !setSignInActive || !setSignUpActive) {
+      return;
+    }
+
+    setAuthError("");
+    setIsEmailLoading(true);
+
+    try {
+      if (isSignUp) {
+        const signUpAttempt = await signUp.attemptEmailAddressVerification({
+          code,
+        });
+
+        if (signUpAttempt.status === "complete" && signUpAttempt.createdSessionId) {
+          await setSignUpActive({
+            session: signUpAttempt.createdSessionId,
+          });
+          finishAuth();
+          return;
+        }
+      } else {
+        const signInAttempt = await signIn.attemptFirstFactor({
+          code,
+          strategy: "email_code",
+        });
+
+        if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
+          await setSignInActive({
+            session: signInAttempt.createdSessionId,
+          });
+          finishAuth();
+          return;
+        }
+      }
+
+      setAuthError("Verification is not complete yet. Please try again.");
+    } catch (error) {
+      setAuthError(getErrorMessage(error));
+    } finally {
+      setIsEmailLoading(false);
+    }
   };
 
   const handleVerificationChange = (value: string) => {
@@ -75,10 +216,40 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     setVerificationCode(nextCode);
 
     if (nextCode.length === 6) {
-      setIsVerificationOpen(false);
-      router.replace("/");
+      handleVerificationSubmit(nextCode);
     }
   };
+
+  const handleSocialAuth = async (strategy: SocialStrategy) => {
+    setAuthError("");
+    setIsSocialLoading(true);
+
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy,
+        redirectUrl: Linking.createURL("oauth-callback"),
+      });
+
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        router.replace("/");
+        return;
+      }
+
+      setAuthError("Social sign in could not be completed. Please try again.");
+    } catch (error) {
+      setAuthError(getErrorMessage(error));
+    } finally {
+      setIsSocialLoading(false);
+    }
+  };
+
+  const isPrimaryDisabled =
+    !isClerkLoaded || isSubmitting || !emailAddress || (isSignUp && !password);
+
+  if (!isClerkLoaded) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -129,38 +300,66 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 autoCorrect={false}
                 inputMode="email"
                 keyboardType="email-address"
+                onChangeText={setEmailAddress}
                 placeholder="alex@gmail.com"
                 placeholderTextColor={colors.textPrimary}
                 style={styles.input}
+                value={emailAddress}
               />
             </View>
-
             {mode === "sign-up" ? (
-              <View style={styles.inputShell}>
-                <Text className="font-poppins-medium text-[16px] leading-[22px] text-[#7D849B]">
-                  Password
-                </Text>
-                <View className="flex-row items-center">
-                  <TextInput
-                    placeholder="•••••••••"
-                    placeholderTextColor={colors.textPrimary}
-                    secureTextEntry
-                    style={[styles.input, styles.passwordInput]}
-                  />
-                  <Ionicons color="#7D849B" name="eye-outline" size={30} />
+              <>
+                <View style={styles.inputShell}>
+                  <Text className="font-poppins-medium text-[16px] leading-[22px] text-[#7D849B]">
+                    Password
+                  </Text>
+                  <View className="flex-row items-center">
+                    <TextInput
+                      onChangeText={setPassword}
+                      placeholder="•••••••••"
+                      placeholderTextColor={colors.textPrimary}
+                      secureTextEntry={!isPasswordVisible}
+                      style={[styles.input, styles.passwordInput]}
+                      value={password}
+                    />
+                    <TouchableOpacity
+                      accessibilityLabel={
+                        isPasswordVisible ? "Hide password" : "Show password"
+                      }
+                      accessibilityRole="button"
+                      activeOpacity={0.7}
+                      onPress={() => setIsPasswordVisible((current) => !current)}
+                      style={styles.passwordVisibilityButton}
+                    >
+                      <Ionicons
+                        color="#7D849B"
+                        name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+                        size={30}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              </>
             ) : null}
 
             <TouchableOpacity
               activeOpacity={0.88}
-              onPress={openVerification}
-              style={styles.primaryButton}
+              disabled={isPrimaryDisabled}
+              onPress={handleEmailAuth}
+              style={[
+                styles.primaryButton,
+                isPrimaryDisabled && styles.disabledButton,
+              ]}
             >
               <Text className="font-poppins-semibold text-[22px] leading-[30px] text-white">
                 {copy.buttonLabel}
               </Text>
             </TouchableOpacity>
+            {visibleError ? (
+              <Text style={styles.errorText}>{visibleError}</Text>
+            ) : null}
+
+            {mode === "sign-up" ? <View nativeID="clerk-captcha" /> : null}
           </View>
 
           <View className="my-7 flex-row items-center gap-5">
@@ -176,7 +375,8 @@ export function AuthScreen({ mode }: AuthScreenProps) {
               <TouchableOpacity
                 activeOpacity={0.82}
                 key={option.label}
-                onPress={openVerification}
+                disabled={isSubmitting}
+                onPress={() => handleSocialAuth(option.strategy)}
                 style={styles.socialButton}
               >
                 <View style={styles.socialIcon}>{option.icon}</View>
@@ -252,6 +452,9 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 textContentType="oneTimeCode"
                 value={verificationCode}
               />
+              {visibleError ? (
+                <Text style={styles.modalErrorText}>{visibleError}</Text>
+              ) : null}
             </TouchableOpacity>
           </TouchableOpacity>
         </KeyboardAvoidingView>
@@ -317,6 +520,13 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 8,
   },
+  passwordVisibilityButton: {
+    alignItems: "center",
+    height: 44,
+    justifyContent: "center",
+    marginRight: -6,
+    width: 44,
+  },
   primaryButton: {
     alignItems: "center",
     backgroundColor: colors.linguaDeepPurple,
@@ -326,6 +536,16 @@ const styles = StyleSheet.create({
     height: 72,
     justifyContent: "center",
     marginTop: 4,
+  },
+  disabledButton: {
+    opacity: 0.55,
+  },
+  errorText: {
+    color: colors.error,
+    fontFamily: "Poppins-Medium",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: -8,
   },
   socialButton: {
     alignItems: "center",
@@ -382,5 +602,12 @@ const styles = StyleSheet.create({
     opacity: 0,
     position: "absolute",
     width: 1,
+  },
+  modalErrorText: {
+    color: colors.error,
+    fontFamily: "Poppins-Medium",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 14,
   },
 });

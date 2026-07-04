@@ -1,4 +1,5 @@
-import { Link, type Href } from "expo-router";
+import { useAuth } from "@clerk/clerk-expo";
+import { Link, Redirect, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Image,
@@ -16,6 +17,16 @@ import { colors } from "@/theme";
 const signUpHref = "/sign-up" as Href;
 
 export default function OnboardingScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (isSignedIn) {
+    return <Redirect href="/" />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
