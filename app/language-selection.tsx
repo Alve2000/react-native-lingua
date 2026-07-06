@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import {
   Image,
   ScrollView,
@@ -14,12 +14,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
+import { useLearningStore } from "@/store/learning-store";
 import { colors, fonts } from "@/theme";
 import type { LanguageId, SupportedLanguage } from "@/types/learning";
 
 export default function LanguageSelectionScreen() {
+  const savedLanguageId = useLearningStore((state) => state.selectedLanguageId);
+  const setSavedLanguageId = useLearningStore(
+    (state) => state.setSelectedLanguageId,
+  );
   const [selectedLanguageId, setSelectedLanguageId] =
-    useState<LanguageId>("spanish");
+    useState<LanguageId>(savedLanguageId ?? "spanish");
   const [searchQuery, setSearchQuery] = useState("");
 
   const visibleLanguages = useMemo(() => {
@@ -37,7 +42,8 @@ export default function LanguageSelectionScreen() {
   }, [searchQuery]);
 
   const handleContinue = () => {
-    router.back();
+    setSavedLanguageId(selectedLanguageId);
+    router.replace("/home" as Href);
   };
 
   return (
