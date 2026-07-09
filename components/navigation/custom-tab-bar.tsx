@@ -1,18 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, fonts } from "@/theme";
@@ -43,31 +37,8 @@ const tabLabels: Record<string, string> = {
   profile: "Profile",
 };
 
-const indicatorSize = 52;
-
 export function CustomTabBar({ descriptors, navigation, state }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const [barWidth, setBarWidth] = useState(width);
-  const activeIndex = useSharedValue(state.index);
-  const tabWidth = barWidth / state.routes.length;
-  const activeRouteName = state.routes[state.index]?.name ?? "home";
-  const activeIcon = activeTabIcons[activeRouteName] ?? "ellipse";
-
-  useEffect(() => {
-    activeIndex.value = withTiming(state.index, {
-      duration: 260,
-    });
-  }, [activeIndex, state.index]);
-
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX:
-          activeIndex.value * tabWidth + tabWidth / 2 - indicatorSize / 2,
-      },
-    ],
-  }));
 
   const containerStyle = useMemo(
     () => [
@@ -81,19 +52,14 @@ export function CustomTabBar({ descriptors, navigation, state }: BottomTabBarPro
   );
 
   return (
-    <View
-      onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
-      style={containerStyle}
-    >
-      <Animated.View style={[styles.indicator, indicatorStyle]}>
-        <Ionicons color="#FFFFFF" name={activeIcon} size={28} />
-      </Animated.View>
-
+    <View style={containerStyle}>
       {state.routes.map((route, index) => {
         const options = descriptors[route.key]?.options;
         const isFocused = state.index === index;
         const label = tabLabels[route.name] ?? String(options?.title ?? route.name);
-        const iconName = inactiveTabIcons[route.name] ?? "ellipse-outline";
+        const iconName = isFocused
+          ? activeTabIcons[route.name] ?? "ellipse"
+          : inactiveTabIcons[route.name] ?? "ellipse-outline";
 
         const handlePress = () => {
           const event = navigation.emit({
@@ -124,16 +90,17 @@ export function CustomTabBar({ descriptors, navigation, state }: BottomTabBarPro
             onPress={handlePress}
             style={styles.tabButton}
           >
-            {isFocused ? (
-              <View style={styles.activeSpacer} />
-            ) : (
-              <>
-                <Ionicons color="#7F86A3" name={iconName} size={29} />
-                <Text numberOfLines={1} style={styles.label}>
-                  {label}
-                </Text>
-              </>
-            )}
+            <Ionicons
+              color={isFocused ? colors.linguaDeepPurple : "#7F86A3"}
+              name={iconName}
+              size={30}
+            />
+            <Text
+              numberOfLines={1}
+              style={[styles.label, isFocused ? styles.activeLabel : null]}
+            >
+              {label}
+            </Text>
           </Pressable>
         );
       })}
@@ -146,44 +113,34 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     backgroundColor: colors.background,
     borderColor: "#F0F1F5",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderTopWidth: 1,
     bottom: 0,
-    boxShadow: "0 -6px 18px rgba(13, 19, 43, 0.06)",
+    boxShadow: "0 -6px 22px rgba(13, 19, 43, 0.08)",
     flexDirection: "row",
     left: 0,
-    paddingTop: 10,
+    paddingHorizontal: 12,
+    paddingTop: 14,
     position: "absolute",
     right: 0,
-  },
-  indicator: {
-    alignItems: "center",
-    backgroundColor: colors.linguaDeepPurple,
-    borderRadius: indicatorSize / 2,
-    height: indicatorSize,
-    justifyContent: "center",
-    position: "absolute",
-    top: 8,
-    width: indicatorSize,
-    zIndex: 2,
   },
   tabButton: {
     alignItems: "center",
     flex: 1,
-    height: 58,
+    height: 56,
     justifyContent: "center",
     paddingHorizontal: 2,
-  },
-  activeSpacer: {
-    height: indicatorSize,
-    width: indicatorSize,
   },
   label: {
     color: "#7F86A3",
     fontFamily: fonts.medium,
     fontSize: 12,
     lineHeight: 17,
-    marginTop: 3,
+    marginTop: 4,
+  },
+  activeLabel: {
+    color: colors.linguaDeepPurple,
+    fontFamily: fonts.semiBold,
   },
 });
