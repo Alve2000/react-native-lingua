@@ -140,6 +140,7 @@ export type Lesson = {
   level: LessonLevel;
   estimatedMinutes: number;
   xpReward: number;
+  imageUrl?: string;
   goals: LessonGoal[];
   vocabulary: VocabularyItem[];
   phrases: PhraseItem[];

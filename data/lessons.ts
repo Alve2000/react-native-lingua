@@ -754,6 +754,83 @@ export const lessons: Lesson[] = [
   },
 ];
 
+const supplementalLessonTitles: Record<
+  Exclude<Lesson["languageId"], "spanish">,
+  string[]
+> = {
+  chinese: ["Meet Your Teacher", "Numbers 1–10", "At the Café", "Daily Routines", "Family & Friends"],
+  french: ["Introduce Yourself", "At the Café", "Daily Life", "Travel & Directions", "Shopping"],
+  german: ["Meet New People", "At the Café", "Daily Life", "Travel & Directions", "Family & Friends"],
+  japanese: ["Meet Your Teacher", "At the Café", "Daily Life", "Travel & Directions", "Family & Friends"],
+  korean: ["Introduce Yourself", "At the Café", "Daily Life", "Shopping", "Family & Friends"],
+};
+
+const createSupplementalLessons = (): Lesson[] =>
+  (Object.entries(supplementalLessonTitles) as [
+    Exclude<Lesson["languageId"], "spanish">,
+    string[],
+  ][]).flatMap(([languageId, titles]) =>
+    titles.map((title, index) => {
+      const number = index + 2;
+      const id = `${languageId}-lesson-${number}`;
+
+      return {
+        id,
+        languageId,
+        unitId: `${languageId}-unit-1`,
+        title,
+        subtitle: `Build confidence with useful ${languageId} phrases.`,
+        order: number,
+        level: "beginner",
+        estimatedMinutes: 6,
+        xpReward: 15,
+        imageUrl: `https://picsum.photos/seed/${id}/900/520`,
+        goals: [
+          {
+            id: `${id}-goal`,
+            title: `Practice ${title.toLowerCase()}`,
+            description: "Use a few practical phrases with confidence.",
+          },
+        ],
+        vocabulary: [
+          {
+            id: `${id}-word`,
+            term: "hello",
+            translation: "hello",
+            pronunciation: "hello",
+            partOfSpeech: "interjection",
+          },
+        ],
+        phrases: [
+          {
+            id: `${id}-phrase`,
+            text: "Hello",
+            translation: "Hello",
+            pronunciation: "hello",
+          },
+        ],
+        activities: [
+          {
+            id: `${id}-activity`,
+            type: "listen-and-repeat",
+            prompt: "Listen, then repeat the phrase.",
+            phraseId: `${id}-phrase`,
+            xpReward: 5,
+          },
+        ],
+        aiTeacherPrompt: {
+          persona: `You are a warm ${languageId} teacher for beginners.`,
+          lessonContext: `The learner is practicing ${title.toLowerCase()}.`,
+          teachingGoals: ["Help the learner use a useful phrase clearly."],
+          speakingInstructions: ["Keep every response short and encouraging."],
+          fallbackResponse: "Let's try that phrase together.",
+        },
+      };
+    }),
+  );
+
+lessons.push(...createSupplementalLessons());
+
 export const getLessonsByUnit = (unitId: Lesson["unitId"]) =>
   lessons.filter((lesson) => lesson.unitId === unitId);
 
